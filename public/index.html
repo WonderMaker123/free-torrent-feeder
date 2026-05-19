@@ -377,7 +377,12 @@ td { font-size: 13px; }
     </section>
 
     <section class="panel" id="panel-stats">
-      <div class="panel-head"><h2>处理记录</h2><button class="btn" onclick="loadStats()">刷新</button></div>
+      <div class="panel-head"><h2>处理记录</h2>
+        <div class="toolbar">
+          <button class="btn" onclick="loadStats()">刷新</button>
+          <button class="btn danger" onclick="clearStats()">清空记录</button>
+        </div>
+      </div>
       <div class="box torrent-list">
         <table>
           <thead><tr><th>时间</th><th>名称</th><th>Hash</th><th>状态</th></tr></thead>
@@ -798,6 +803,13 @@ async function loadStats() {
       <td>${row.isFree ? '<span class="badge green">已添加免费</span>' : '<span class="badge">非免费/失败</span>'}</td>
     </tr>
   `).join('') : '<tr><td colspan="4" class="hint">暂无记录</td></tr>';
+}
+
+async function clearStats() {
+  if (!confirm('确定清空所有记录？此操作不可恢复。')) return;
+  await api('/api/stats/clear', { method: 'POST' });
+  toast('记录已清空', 'success');
+  loadStats();
 }
 
 async function logout() {

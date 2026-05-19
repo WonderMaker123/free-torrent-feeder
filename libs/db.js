@@ -130,6 +130,14 @@ function getRecentFree(limit) {
 }
 
 /**
+ * 清空所有记录
+ */
+function clearAll() {
+  const data = { torrents: {} };
+  saveData(data);
+}
+
+/**
  * 清理 30 天前的记录
  */
 function cleanOldRecords() {
@@ -151,4 +159,5 @@ module.exports = {
   getSeedsToRescan,
   getRecentFree,
   cleanOldRecords,
+  clearAll,
 };

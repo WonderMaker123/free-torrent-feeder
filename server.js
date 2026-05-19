@@ -628,6 +628,11 @@ app.get('/api/stats', requireAuth, (req, res) => {
   res.json({ recent: Database.getRecentFree(100) });
 });
 
+app.post('/api/stats/clear', requireAuth, (req, res) => {
+  Database.clearAll();
+  res.json({ ok: true });
+});
+
 async function main() {
   emitLog('info', '========== 免费种子监控程序启动 ==========');
   emitLog('info', `qBittorrent 地址: ${CONFIG.QBITORRENT.URL}`);
