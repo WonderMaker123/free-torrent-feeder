@@ -737,17 +737,17 @@ function renderRss() {
         ${feed.lastError ? `<span class="badge red">${esc(feed.lastError)}</span>` : ''}
       </div>
       <div class="torrent-list">
-        ${renderTorrentTable(feed.items || [])}
+        ${renderTorrentTable(feed.items || [], feed.name)}
       </div>
     </div>
   `).join('');
 }
 
-function renderTorrentTable(items) {
+function renderTorrentTable(items, feedName) {
   if (!items.length) return '<div class="hint" style="padding:10px 0">暂无种子列表。</div>';
   return `
     <table>
-      <thead><tr><th>名称</th><th>链接</th><th>大小</th><th>Hash</th><th>免费</th><th>状态</th></tr></thead>
+      <thead><tr><th>名称</th><th>链接</th><th>大小</th><th>Hash</th><th>免费</th><th>状态</th><th>操作</th></tr></thead>
       <tbody>
         ${items.slice(0, 100).map(item => `
           <tr>
@@ -757,11 +757,37 @@ function renderTorrentTable(items) {
             <td class="mono">${esc(item.hash || '-')}</td>
             <td>${item.isFree === true ? '<span class="badge green">免费</span>' : item.isFree === false ? '<span class="badge">非免费</span>' : '<span class="badge yellow">待检测</span>'}</td>
             <td>${item.added ? '<span class="badge green">已添加</span>' : item.processed ? '<span class="badge">已处理</span>' : '<span class="badge yellow">待处理</span>'}</td>
-          </tr>
+            <td><button class="btn" style="padding:2px 8px;font-size:12px" onclick="checkFree(this,'${esc(item.link)}','${esc(feedName)}')">检测</button></td>
         `).join('')}
       </tbody>
     </table>
   `;
+}
+
+async function checkFree(btn, url, feedName) {
+  btn.disabled = true;
+  btn.textContent = '检测中';
+  try {
+    const data = await api('/api/check-free', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, feedName }),
+    });
+    // 找到对应行更新免费状态
+    const row = btn.closest('tr');
+    const td = row.children[4]; // 免费列
+    if (data.isFree) {
+      td.innerHTML = '<span class="badge green">免费</span>';
+    } else {
+      td.innerHTML = '<span class="badge">非免费</span>';
+    }
+    toast(`检测完成: ${data.isFree ? '免费' : '非免费'}`, data.isFree ? 'success' : '');
+  } catch (e) {
+    toast(`检测失败: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '检测';
+  }
 }
 
 async function runCycle() {

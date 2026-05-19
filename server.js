@@ -628,6 +628,20 @@ app.get('/api/stats', requireAuth, (req, res) => {
   res.json({ recent: Database.getRecentFree(100) });
 });
 
+// 手动检测单个 URL 的免费状态
+app.post('/api/check-free', requireAuth, async (req, res) => {
+  const { url, feedName } = req.body;
+  if (!url) return res.status(400).json({ error: 'url 必填' });
+  const feed = (CONFIG.RSS_FEEDS || []).find(f => f.name === feedName);
+  const cookie = feed?.cookie || '';
+  try {
+    const isFree = await scrape.free(url, cookie);
+    res.json({ isFree });
+  } catch (e) {
+    res.status(500).json({ error: errorMessage(e) });
+  }
+});
+
 app.post('/api/stats/clear', requireAuth, (req, res) => {
   Database.clearAll();
   res.json({ ok: true });
