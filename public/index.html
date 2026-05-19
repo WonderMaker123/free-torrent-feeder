@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>免费种子监控 - 控制台</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f1419;
+  --panel: #171d24;
+  --panel2: #1f2730;
+  --panel3: #25303a;
+  --line: #2d3742;
+  --text: #e8edf2;
+  --muted: #91a0ad;
+  --green: #3fb978;
+  --blue: #5ba7ff;
+  --yellow: #e5aa3f;
+  --red: #ff6b6b;
+}
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+}
+button, input, textarea { font: inherit; }
+.topbar {
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--panel3);
+  color: var(--green);
+  font-weight: 800;
+}
+.brand-title { font-size: 16px; font-weight: 700; }
+.status { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
+.dot.offline { background: var(--red); }
+.dot.running { background: var(--yellow); animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .4; } }
+.layout { display: grid; grid-template-columns: 210px 1fr; min-height: calc(100vh - 58px); }
+.sidebar {
+  border-right: 1px solid var(--line);
+  background: #121820;
+  padding: 18px 12px;
+}
+.nav { display: grid; gap: 6px; }
+.nav button {
+  height: 38px;
+  text-align: left;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.nav button:hover { background: var(--panel); color: var(--text); }
+.nav button.active { background: var(--panel2); color: var(--blue); }
+.content { padding: 24px; min-width: 0; }
+.panel { display: none; }
+.panel.active { display: block; }
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+h2 { font-size: 18px; letter-spacing: 0; }
+.grid { display: grid; gap: 14px; }
+.cards { grid-template-columns: repeat(4, minmax(150px, 1fr)); margin-bottom: 20px; }
+.card, .box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+.label { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+.value { font-size: 24px; font-weight: 750; }
+.value.small { font-size: 14px; line-height: 1.5; }
+.green { color: var(--green); }
+.blue { color: var(--blue); }
+.yellow { color: var(--yellow); }
+.red { color: var(--red); }
+.btn {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel2);
+  color: var(--text);
+  padding: 0 13px;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: #238654; border-color: #238654; color: white; }
+.btn.danger { background: #9f3030; border-color: #9f3030; color: white; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 15px;
+}
+.field { display: grid; gap: 7px; }
+.field.full { grid-column: 1 / -1; }
+label { color: var(--muted); font-size: 13px; }
+input, textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0f1419;
+  color: var(--text);
+  padding: 9px 11px;
+  outline: none;
+}
+textarea { min-height: 86px; resize: vertical; }
+input:focus, textarea:focus { border-color: var(--blue); }
+.hint { color: var(--muted); font-size: 12px; }
+.switch-line {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid rgba(45,55,66,.7);
+}
+.switch-line:last-child { border-bottom: 0; }
+.switch {
+  width: 42px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--panel3);
+  padding: 3px;
+}
+.switch::after {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  transition: transform .18s;
+}
+.switch.on { background: var(--green); }
+.switch.on::after { transform: translateX(18px); }
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.feed-list, .rss-list { display: grid; gap: 12px; }
+.feed-row, .rss-feed {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+.row-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+.name { font-weight: 700; }
+.url { color: var(--muted); font-size: 12px; word-break: break-all; }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border-radius: 999px;
+  padding: 0 9px;
+  font-size: 12px;
+  background: var(--panel3);
+  color: var(--muted);
+}
+.badge.green { background: rgba(63,185,120,.16); color: var(--green); }
+.badge.yellow { background: rgba(229,170,63,.16); color: var(--yellow); }
+.badge.red { background: rgba(255,107,107,.16); color: var(--red); }
+.torrent-list { margin-top: 12px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+th, td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
+th { color: var(--muted); font-size: 12px; font-weight: 600; }
+td { font-size: 13px; }
+.mono { font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; color: var(--muted); }
+.logs {
+  height: 430px;
+  overflow: auto;
+  background: #0f1419;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.log-line { display: grid; grid-template-columns: 112px 1fr; gap: 10px; }
+.log-time { color: var(--muted); }
+.log-success .log-msg { color: var(--green); }
+.log-warn .log-msg { color: var(--yellow); }
+.log-error .log-msg { color: var(--red); }
+.modal-wrap {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0,0,0,.6);
+  z-index: 30;
+}
+.modal-wrap.show { display: flex; }
+.modal {
+  width: min(620px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+}
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  max-width: min(420px, calc(100vw - 40px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel2);
+  color: var(--text);
+  padding: 11px 14px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all .18s;
+  z-index: 40;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error { border-color: var(--red); color: var(--red); }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+  .nav { grid-template-columns: repeat(3, 1fr); }
+  .cards, .form { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">FT</div>
+    <div>
+      <div class="brand-title">免费种子监控</div>
+      <div class="hint" id="userText">admin</div>
+    </div>
+  </div>
+  <div class="status">
+    <span class="dot offline" id="statusDot"></span>
+    <span id="statusText">连接中...</span>
+    <button class="btn" onclick="logout()">退出</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <nav class="nav">
+      <button class="active" data-panel="overview">概览</button>
+      <button data-panel="rss">RSS 面板</button>
+      <button data-panel="logs">实时日志</button>
+      <button data-panel="qb">qBittorrent</button>
+      <button data-panel="feeds">RSS 源</button>
+      <button data-panel="settings">设置</button>
+      <button data-panel="stats">记录</button>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <section class="panel active" id="panel-overview">
+      <div class="panel-head">
+        <h2>运行概览</h2>
+        <button class="btn primary" id="runBtn" onclick="runCycle()">立即抓取</button>
+      </div>
+      <div class="grid cards">
+        <div class="card"><div class="label">RSS 源</div><div class="value blue" id="feedCount">-</div></div>
+        <div class="card"><div class="label">qBittorrent</div><div class="value small" id="qbState">-</div></div>
+        <div class="card"><div class="label">上次抓取</div><div class="value small yellow" id="lastCycle">-</div></div>
+        <div class="card"><div class="label">下次抓取</div><div class="value small blue" id="nextCycle">-</div></div>
+      </div>
+      <div class="box">
+        <div class="row-head"><h2>最近日志</h2><button class="btn" onclick="showPanel('logs')">查看全部</button></div>
+        <div class="logs" id="overviewLogs" style="height:260px"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-rss">
+      <div class="panel-head">
+        <h2>RSS 当前抓取</h2>
+        <div class="toolbar">
+          <button class="btn" onclick="loadRss()">刷新</button>
+          <button class="btn primary" onclick="runCycle()">立即抓取</button>
+        </div>
+      </div>
+      <div class="rss-list" id="rssList"></div>
+    </section>
+
+    <section class="panel" id="panel-logs">
+      <div class="panel-head">
+        <h2>实时日志</h2>
+        <div class="toolbar">
+          <button class="btn" onclick="clearLogs()">清空</button>
+          <button class="btn" onclick="downloadLogs()">导出</button>
+          <span class="hint" id="logCount">0 条</span>
+        </div>
+      </div>
+      <div class="logs" id="logs"></div>
+    </section>
+
+    <section class="panel" id="panel-qb">
+      <div class="panel-head">
+        <h2>qBittorrent 配置</h2>
+        <button class="btn" onclick="testQB()">测试连接</button>
+      </div>
+      <div class="box">
+        <div class="form">
+          <div class="field"><label>Web UI 地址</label><input id="qbURL" placeholder="http://localhost:8080"></div>
+          <div class="field"><label>用户名</label><input id="qbUsername" placeholder="admin"></div>
+          <div class="field"><label>密码</label><input id="qbPassword" type="password" placeholder="留空则不修改"></div>
+          <div class="field"><label>分类标签</label><input id="qbCategory" placeholder="auto-free"></div>
+          <div class="field full"><label>保存路径</label><input id="qbSavePath" placeholder="留空使用 qB 默认路径"></div>
+          <div class="field"><label>下载限速 KB/s</label><input id="qbDL" type="number" min="0"></div>
+          <div class="field"><label>上传限速 KB/s</label><input id="qbUL" type="number" min="0"></div>
+          <div class="field full">
+            <div class="switch-line"><span>跳过 Hash 校验</span><button class="switch" id="tSkipHash" onclick="toggleSwitch(this)"></button></div>
+            <div class="switch-line"><span>添加后暂停</span><button class="switch" id="tPaused" onclick="toggleSwitch(this)"></button></div>
+            <div class="switch-line"><span>自动种子管理</span><button class="switch" id="tAutoTMM" onclick="toggleSwitch(this)"></button></div>
+            <div class="switch-line"><span>优先下载首尾片段</span><button class="switch" id="tFirstLast" onclick="toggleSwitch(this)"></button></div>
+          </div>
+        </div>
+        <div class="actions"><button class="btn primary" onclick="saveQB()">保存 qBittorrent 配置</button></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-feeds">
+      <div class="panel-head">
+        <h2>RSS 源管理</h2>
+        <button class="btn primary" onclick="openFeedModal()">添加 RSS 源</button>
+      </div>
+      <div class="feed-list" id="feedList"></div>
+    </section>
+
+    <section class="panel" id="panel-settings">
+      <div class="panel-head"><h2>全局设置</h2></div>
+      <div class="box">
+        <div class="form">
+          <div class="field"><label>管理账号</label><input id="appUsername" placeholder="admin"></div>
+          <div class="field"><label>管理密码</label><input id="appPassword" type="password" placeholder="留空则不修改"></div>
+          <div class="field"><label>抓取间隔 分钟</label><input id="intervalMin" type="number" min="1" max="1440"></div>
+          <div class="field"><label>站点请求间隔 毫秒</label><input id="siteDelay" type="number" min="0" max="60000"></div>
+          <div class="field full"><div class="switch-line"><span>调试模式</span><button class="switch" id="tDebug" onclick="toggleSwitch(this)"></button></div></div>
+        </div>
+        <div class="actions"><button class="btn primary" onclick="saveSettings()">保存设置</button></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-stats">
+      <div class="panel-head"><h2>处理记录</h2><button class="btn" onclick="loadStats()">刷新</button></div>
+      <div class="box torrent-list">
+        <table>
+          <thead><tr><th>时间</th><th>Hash</th><th>状态</th></tr></thead>
+          <tbody id="statsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-wrap" id="feedModal">
+  <div class="modal">
+    <div class="panel-head"><h2 id="feedModalTitle">添加 RSS 源</h2></div>
+    <div class="form">
+      <div class="field"><label>名称</label><input id="feedName" placeholder="例如 M-Team"></div>
+      <div class="field full"><label>RSS URL</label><input id="feedUrl" placeholder="https://example.com/torrentrss.php?..."></div>
+      <div class="field full"><label>Cookie / API Key</label><textarea id="feedCookie" placeholder="用于检测免费状态，按站点要求填写"></textarea></div>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="closeFeedModal()">取消</button>
+      <button class="btn primary" onclick="saveFeed()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let currentConfig = null;
+let logs = [];
+let rssFeeds = [];
+let editingFeedName = null;
+let eventSource = null;
+
+const $ = id => document.getElementById(id);
+const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const isOn = id => $(id).classList.contains('on');
+const setOn = (id, value) => $(id).classList.toggle('on', !!value);
+
+function toast(message, type = '') {
+  const el = $('toast');
+  el.textContent = message;
+  el.className = `toast show ${type}`.trim();
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function toggleSwitch(el) {
+  el.classList.toggle('on');
+}
+
+function formatTime(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString('zh-CN', { hour12: false });
+}
+
+function formatSize(bytes) {
+  let size = Number(bytes) || 0;
+  if (!size) return '未知';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  while (size >= 1024 && i < units.length - 1) { size /= 1024; i += 1; }
+  return `${size.toFixed(size >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function statusBadge(status) {
+  const map = {
+    fetching: ['抓取中', 'yellow'],
+    checking: ['检测中', 'yellow'],
+    error: ['错误', 'red'],
+    idle: ['空闲', 'green'],
+  };
+  const [text, cls] = map[status] || [status || '未知', ''];
+  return `<span class="badge ${cls}">${text}</span>`;
+}
+
+async function api(url, options = {}) {
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    location.href = '/login.html';
+    throw new Error('未登录');
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || '请求失败');
+  return data;
+}
+
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(el => el.classList.toggle('active', el.dataset.panel === name));
+  $(`panel-${name}`).classList.add('active');
+  if (name === 'stats') loadStats();
+  if (name === 'rss') loadRss();
+}
+
+document.querySelectorAll('.nav button').forEach(btn => {
+  btn.addEventListener('click', () => showPanel(btn.dataset.panel));
+});
+
+async function checkAuth() {
+  const me = await api('/api/me');
+  $('userText').textContent = `当前账号 ${me.username || 'admin'}`;
+}
+
+function connectEvents() {
+  eventSource = new EventSource('/api/events');
+  eventSource.onmessage = event => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'init') {
+      logs = data.logs || [];
+      rssFeeds = data.rss || [];
+      renderLogs();
+      renderRss();
+    }
+    if (data.type === 'log') {
+      logs.push(data.entry);
+      if (logs.length > 2000) logs = logs.slice(-2000);
+      renderLogs();
+    }
+    if (data.type === 'rss') {
+      rssFeeds = data.rss || [];
+      renderRss();
+    }
+    if (data.type === 'status') loadStatus();
+  };
+  eventSource.onerror = () => {
+    eventSource.close();
+    setTimeout(connectEvents, 4000);
+  };
+}
+
+function renderLogs() {
+  const html = logs.slice(-350).reverse().map(log => {
+    const cls = `log-line log-${esc(log.level || 'info')}`;
+    return `<div class="${cls}"><span class="log-time">${esc(formatTime(log.time))}</span><span class="log-msg">${esc(log.message)}</span></div>`;
+  }).join('');
+  $('logs').innerHTML = html || '<div class="hint">暂无日志</div>';
+  $('overviewLogs').innerHTML = logs.slice(-30).reverse().map(log => {
+    const cls = `log-line log-${esc(log.level || 'info')}`;
+    return `<div class="${cls}"><span class="log-time">${esc(formatTime(log.time))}</span><span class="log-msg">${esc(log.message)}</span></div>`;
+  }).join('') || '<div class="hint">暂无日志</div>';
+  $('logCount').textContent = `${logs.length} 条`;
+}
+
+async function loadStatus() {
+  const s = await api('/api/status');
+  $('feedCount').textContent = s.feedCount;
+  $('qbState').textContent = s.qbConnected ? `已连接 ${s.qbUrl}` : `未连接 ${s.qbUrl}`;
+  $('qbState').className = `value small ${s.qbConnected ? 'green' : 'red'}`;
+  $('lastCycle').textContent = formatTime(s.lastCycleTime);
+  $('nextCycle').textContent = formatTime(s.nextCycleTime);
+  $('runBtn').disabled = !!s.cycleRunning;
+  $('runBtn').textContent = s.cycleRunning ? '抓取中...' : '立即抓取';
+  $('statusDot').className = `dot ${s.cycleRunning ? 'running' : (s.qbConnected ? '' : 'offline')}`;
+  $('statusText').textContent = s.cycleRunning ? '正在抓取 RSS' : (s.qbConnected ? 'qBittorrent 已连接' : 'qBittorrent 未连接');
+}
+
+async function loadConfig() {
+  currentConfig = await api('/api/config');
+  fillConfig();
+  renderFeeds();
+}
+
+function fillConfig() {
+  const qb = currentConfig.QBITORRENT;
+  $('qbURL').value = qb.URL || '';
+  $('qbUsername').value = qb.USERNAME || '';
+  $('qbPassword').value = '';
+  $('qbCategory').value = qb.CATEGORY || '';
+  $('qbSavePath').value = qb.SAVE_PATH || '';
+  $('qbDL').value = Math.round((Number(qb.DOWNLOAD_LIMIT) || 0) / 1024);
+  $('qbUL').value = Math.round((Number(qb.UPLOAD_LIMIT) || 0) / 1024);
+  setOn('tSkipHash', qb.SKIP_HASH_CHECK);
+  setOn('tPaused', qb.PAUSED);
+  setOn('tAutoTMM', qb.AUTO_TMM);
+  setOn('tFirstLast', qb.FIRST_LAST_PIECE_PRIO);
+
+  const app = currentConfig.APP;
+  $('appUsername').value = app.USERNAME || 'admin';
+  $('appPassword').value = '';
+  $('intervalMin').value = Math.max(1, Math.round((Number(app.INTERVAL_MS) || 300000) / 60000));
+  $('siteDelay').value = Number(app.SITE_DELAY_MS) || 3000;
+  setOn('tDebug', app.DEBUG);
+}
+
+async function saveQB() {
+  const payload = {
+    QBITORRENT: {
+      URL: $('qbURL').value.trim(),
+      USERNAME: $('qbUsername').value.trim(),
+      CATEGORY: $('qbCategory').value.trim(),
+      SAVE_PATH: $('qbSavePath').value.trim(),
+      DOWNLOAD_LIMIT: (Number($('qbDL').value) || 0) * 1024,
+      UPLOAD_LIMIT: (Number($('qbUL').value) || 0) * 1024,
+      SKIP_HASH_CHECK: isOn('tSkipHash'),
+      PAUSED: isOn('tPaused'),
+      AUTO_TMM: isOn('tAutoTMM'),
+      FIRST_LAST_PIECE_PRIO: isOn('tFirstLast'),
+    },
+  };
+  if ($('qbPassword').value) payload.QBITORRENT.PASSWORD = $('qbPassword').value;
+  await api('/api/config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  toast('qBittorrent 配置已保存', 'success');
+  await loadConfig();
+  await loadStatus();
+}
+
+async function saveSettings() {
+  const payload = {
+    APP: {
+      USERNAME: $('appUsername').value.trim() || 'admin',
+      INTERVAL_MS: Math.max(1, Number($('intervalMin').value) || 5) * 60000,
+      SITE_DELAY_MS: Math.max(0, Number($('siteDelay').value) || 0),
+      DEBUG: isOn('tDebug'),
+    },
+  };
+  if ($('appPassword').value) payload.APP.PASSWORD = $('appPassword').value;
+  await api('/api/config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  toast('设置已保存', 'success');
+  await loadConfig();
+}
+
+async function testQB() {
+  try {
+    await api('/api/qb/test', { method: 'POST' });
+    toast('qBittorrent 连接成功', 'success');
+  } catch (e) {
+    toast(`连接失败: ${e.message}`, 'error');
+  } finally {
+    await loadStatus();
+  }
+}
+
+function renderFeeds() {
+  const feeds = currentConfig?.RSS_FEEDS || [];
+  if (!feeds.length) {
+    $('feedList').innerHTML = '<div class="box hint">暂无 RSS 源。</div>';
+    return;
+  }
+  $('feedList').innerHTML = feeds.map(feed => `
+    <div class="feed-row">
+      <div class="row-head">
+        <div class="name">${esc(feed.name)}</div>
+        <div class="toolbar">
+          <button class="btn" onclick="editFeed('${esc(feed.name)}')">编辑</button>
+          <button class="btn danger" onclick="deleteFeed('${esc(feed.name)}')">删除</button>
+        </div>
+      </div>
+      <div class="url">${esc(feed.url)}</div>
+    </div>
+  `).join('');
+}
+
+function openFeedModal() {
+  editingFeedName = null;
+  $('feedModalTitle').textContent = '添加 RSS 源';
+  $('feedName').readOnly = false;
+  $('feedName').value = '';
+  $('feedUrl').value = '';
+  $('feedCookie').value = '';
+  $('feedModal').classList.add('show');
+}
+
+function editFeed(name) {
+  const feed = (currentConfig.RSS_FEEDS || []).find(item => item.name === name);
+  if (!feed) return;
+  editingFeedName = name;
+  $('feedModalTitle').textContent = '编辑 RSS 源';
+  $('feedName').readOnly = true;
+  $('feedName').value = feed.name;
+  $('feedUrl').value = feed.url;
+  $('feedCookie').value = feed.cookie || '';
+  $('feedModal').classList.add('show');
+}
+
+function closeFeedModal() {
+  $('feedModal').classList.remove('show');
+}
+
+async function saveFeed() {
+  const feed = {
+    name: $('feedName').value.trim(),
+    url: $('feedUrl').value.trim(),
+    cookie: $('feedCookie').value,
+  };
+  if (!feed.name || !feed.url) {
+    toast('名称和 RSS URL 必填', 'error');
+    return;
+  }
+  if (editingFeedName) {
+    const feeds = (currentConfig.RSS_FEEDS || []).map(item => item.name === editingFeedName ? feed : item);
+    await api('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ RSS_FEEDS: feeds }),
+    });
+  } else {
+    await api('/api/feeds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(feed),
+    });
+  }
+  toast('RSS 源已保存', 'success');
+  closeFeedModal();
+  await loadConfig();
+  await loadRss();
+}
+
+async function deleteFeed(name) {
+  if (!confirm(`确定删除 RSS 源“${name}”？`)) return;
+  await api(`/api/feeds/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  toast('RSS 源已删除', 'success');
+  await loadConfig();
+  await loadRss();
+}
+
+async function loadRss() {
+  const data = await api('/api/rss/current');
+  rssFeeds = data.feeds || [];
+  renderRss();
+}
+
+function renderRss() {
+  if (!rssFeeds.length) {
+    $('rssList').innerHTML = '<div class="box hint">暂无 RSS 数据。添加 RSS 源后点击“立即抓取”。</div>';
+    return;
+  }
+  $('rssList').innerHTML = rssFeeds.map(feed => `
+    <div class="rss-feed">
+      <div class="row-head">
+        <div>
+          <div class="name">${esc(feed.name)}</div>
+          <div class="url">${esc(feed.url)}</div>
+        </div>
+        ${statusBadge(feed.status)}
+      </div>
+      <div class="toolbar">
+        <span class="badge">种子 ${feed.total || 0}</span>
+        <span class="badge green">免费 ${feed.freeCount || 0}</span>
+        <span class="badge blue">已添加 ${feed.addedCount || 0}</span>
+        <span class="hint">上次抓取 ${formatTime(feed.lastFetched)}</span>
+        ${feed.lastError ? `<span class="badge red">${esc(feed.lastError)}</span>` : ''}
+      </div>
+      <div class="torrent-list">
+        ${renderTorrentTable(feed.items || [])}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderTorrentTable(items) {
+  if (!items.length) return '<div class="hint" style="padding:10px 0">暂无种子列表。</div>';
+  return `
+    <table>
+      <thead><tr><th>名称</th><th>大小</th><th>Hash</th><th>免费</th><th>状态</th></tr></thead>
+      <tbody>
+        ${items.slice(0, 100).map(item => `
+          <tr>
+            <td><a class="blue" href="${esc(item.link || item.url)}" target="_blank" rel="noreferrer">${esc(item.name || '未命名')}</a>${item.error ? `<div class="red">${esc(item.error)}</div>` : ''}</td>
+            <td>${esc(item.sizeText || formatSize(item.size))}</td>
+            <td class="mono">${esc(item.hash || '-')}</td>
+            <td>${item.isFree === true ? '<span class="badge green">免费</span>' : item.isFree === false ? '<span class="badge">非免费</span>' : '<span class="badge yellow">待检测</span>'}</td>
+            <td>${item.added ? '<span class="badge green">已添加</span>' : item.processed ? '<span class="badge">已处理</span>' : '<span class="badge yellow">待处理</span>'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+async function runCycle() {
+  try {
+    await api('/api/cycle/run', { method: 'POST' });
+    toast('抓取任务已启动', 'success');
+    await loadStatus();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function clearLogs() {
+  await api('/api/logs/clear', { method: 'POST' });
+  logs = [];
+  renderLogs();
+  toast('日志已清空', 'success');
+}
+
+function downloadLogs() {
+  const text = logs.map(log => `[${log.time}] [${log.level}] ${log.message}`).join('\n');
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `free-torrent-feeder-${new Date().toISOString().slice(0, 10)}.log`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function loadStats() {
+  const data = await api('/api/stats');
+  const rows = data.recent || [];
+  $('statsBody').innerHTML = rows.length ? rows.map(row => `
+    <tr>
+      <td>${esc(formatTime(row.addedAt))}</td>
+      <td class="mono">${esc(row.hash)}</td>
+      <td>${row.isFree ? '<span class="badge green">已添加免费</span>' : '<span class="badge">非免费/失败</span>'}</td>
+    </tr>
+  `).join('') : '<tr><td colspan="3" class="hint">暂无记录</td></tr>';
+}
+
+async function logout() {
+  await fetch('/api/logout', { method: 'POST' });
+  location.href = '/login.html';
+}
+
+$('feedModal').addEventListener('click', event => {
+  if (event.target === $('feedModal')) closeFeedModal();
+});
+
+(async function init() {
+  try {
+    await checkAuth();
+    connectEvents();
+    await loadConfig();
+    await loadStatus();
+    await loadRss();
+    setInterval(loadStatus, 10000);
+  } catch (e) {
+    if (e.message !== '未登录') toast(e.message, 'error');
+  }
+})();
+</script>
+</body>
+</html>
