@@ -6,6 +6,11 @@ const crypto = require('crypto');
 const { EventEmitter } = require('events');
 
 let CONFIG = require('./config');
+
+// 确保重检配置有默认值
+CONFIG.APP.RESCAN_INTERVAL_MS = CONFIG.APP.RESCAN_INTERVAL_MS || 10 * 60 * 1000;
+CONFIG.APP.RESCAN_WINDOW_HOURS = CONFIG.APP.RESCAN_WINDOW_HOURS || 24;
+CONFIG.APP.RESCAN_MAX_PER_CYCLE = CONFIG.APP.RESCAN_MAX_PER_CYCLE || 10;
 const qbClient = require('./libs/qb');
 const rssParser = require('./libs/rss');
 const scrape = require('./libs/scrape');
@@ -49,6 +54,7 @@ function requireAuth(req, res, next) {
 let qbCookie = '';
 let cycleRunning = false;
 let cycleTimer = null;
+let rescanTimer = null;
 let lastCycleTime = null;
 let nextCycleTime = null;
 const rssState = new Map();
@@ -313,6 +319,33 @@ async function runCycle() {
 }
 
 /**
+ * 独立重检周期（不受 RSS 抓取影响）
+ */
+async function runRescanCycle() {
+  if (cycleRunning) {
+    // 如果 RSS 抓取正在运行，跳过本次重检
+    return;
+  }
+  emitLog('info', '========== 定时重检开始 ==========');
+  try {
+    await rescanNonFreeSeeds();
+  } catch (e) {
+    emitLog('error', `重检周期异常: ${errorMessage(e)}`);
+  }
+  emitLog('info', '========== 定时重检结束 ==========');
+}
+  } catch (e) {
+    emitLog('error', `抓取周期异常: ${errorMessage(e)}`);
+  } finally {
+    cycleRunning = false;
+    lastCycleTime = new Date().toISOString();
+    const interval = CONFIG.APP.INTERVAL_MS || 5 * 60 * 1000;
+    nextCycleTime = new Date(Date.now() + interval).toISOString();
+    bus.emit('status');
+  }
+}
+
+/**
  * 重检近期非免费种子，看是否已变免费
  */
 async function rescanNonFreeSeeds() {
@@ -388,6 +421,13 @@ function startScheduler() {
   bus.emit('status');
 }
 
+function startRescanScheduler() {
+  if (rescanTimer) clearInterval(rescanTimer);
+  const interval = Number(CONFIG.APP.RESCAN_INTERVAL_MS) || 10 * 60 * 1000;
+  rescanTimer = setInterval(runRescanCycle, interval);
+  emitLog('info', `重检定时器已启动，间隔 ${Math.round(interval / 60000)} 分钟`);
+}
+
 function serializeConfig() {
   return `module.exports = ${JSON.stringify(CONFIG, null, 2)};\n`;
 }
@@ -419,6 +459,18 @@ function mergeConfig(newConfig) {
     }
     if (appConfig.SITE_DELAY_MS !== undefined && Number(appConfig.SITE_DELAY_MS) < 0) {
       badRequest('站点请求间隔不能小于 0');
+    }
+    if (appConfig.RESCAN_INTERVAL_MS !== undefined) {
+      const ri = Number(appConfig.RESCAN_INTERVAL_MS);
+      if (ri < 60000) badRequest('重检间隔不能小于 1 分钟');
+      CONFIG.APP.RESCAN_INTERVAL_MS = ri;
+      startRescanScheduler();
+    }
+    if (appConfig.RESCAN_WINDOW_HOURS !== undefined) {
+      CONFIG.APP.RESCAN_WINDOW_HOURS = Number(appConfig.RESCAN_WINDOW_HOURS);
+    }
+    if (appConfig.RESCAN_MAX_PER_CYCLE !== undefined) {
+      CONFIG.APP.RESCAN_MAX_PER_CYCLE = Number(appConfig.RESCAN_MAX_PER_CYCLE);
     }
     Object.assign(CONFIG.APP, appConfig);
     startScheduler();
@@ -612,6 +664,7 @@ async function main() {
   }
 
   startScheduler();
+  startRescanScheduler();
   setTimeout(() => {
     emitLog('info', '首次抓取将在后台进行');
     runCycle().catch(e => emitLog('error', `首次抓取异常: ${errorMessage(e)}`));
