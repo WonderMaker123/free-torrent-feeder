@@ -228,10 +228,6 @@ async function processRssFeed(feed) {
   for (const torrent of torrents) {
     const key = torrentKey(torrent);
     const item = state.items.find(x => x.hash === key || (x.url && x.url === torrent.url));
-    if (Database.isHashProcessed(key)) {
-      if (item) item.processed = true;
-      continue;
-    }
 
     let isFree = false;
     try {
@@ -245,9 +241,7 @@ async function processRssFeed(feed) {
 
     if (item) item.isFree = isFree;
     if (!isFree) {
-      Database.markAsProcessed(key, false, torrent.link || torrent.url, torrent.name, torrent.url);
-      if (item) item.processed = true;
-      broadcastRssState();
+      // 非免费，跳过（不记录，避免污染记录）
       continue;
     }
 
@@ -266,7 +260,6 @@ async function processRssFeed(feed) {
         CONFIG.QBITORRENT.FIRST_LAST_PIECE_PRIO,
         CONFIG.QBITORRENT.PAUSED
       );
-      Database.markAsProcessed(key, true, torrent.link || torrent.url, torrent.name, torrent.url);
       state.addedCount += 1;
       if (item) {
         item.added = true;
@@ -276,7 +269,7 @@ async function processRssFeed(feed) {
     } catch (e) {
       if (item) item.error = errorMessage(e);
       emitLog('error', `[${name}] 添加失败 [${torrent.name}]: ${errorMessage(e)}`);
-      Database.markAsProcessed(key, false, torrent.link || torrent.url, torrent.name, torrent.url);
+      // 添加失败，不记录，下次 RSS 仍会检测
     }
     broadcastRssState();
   }
