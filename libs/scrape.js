@@ -121,28 +121,11 @@ async function freeU2DMHY(html) {
   }
   const dom = new JSDOM(html);
   const doc = dom.window.document;
-  // U2 免费标记：td[valign=top] img[class=pro_free] 或 pro_free2up
-  const proFree = doc.querySelector('td[valign=top] img[class=pro_free]');
-  const proFree2up = doc.querySelector('td[valign=top] img[class=pro_free2up]');
-  if (proFree || proFree2up) return true;
-  // 检查箭头下载 + 倍率 0.00X（免费段倍率）
-  // 需要找到 td[valign=top] 内的 img.arrowdown，然后检查其后继节点的文本内容
-  const arrowDown = doc.querySelector('td[valign=top] img[class=arrowdown]');
-  if (arrowDown) {
-    // nextSibling 可能是空白文本节点，遍历找到有效节点
-    let sibling = arrowDown.nextSibling;
-    while (sibling) {
-      if (sibling.nodeType === Node.ELEMENT_NODE && sibling.innerHTML) {
-        const text = sibling.innerHTML.replace(/<[^>]+>/g, '').trim();
-        if (text === '0.00X' || text === '0.00x') return true;
-      } else if (sibling.nodeType === Node.TEXT_NODE) {
-        const text = sibling.textContent.replace(/\s+/g, '').trim();
-        if (text === '0.00X' || text === '0.00x') return true;
-      }
-      sibling = sibling.nextSibling;
-    }
-  }
-  return false;
+  // U2 免费标记：pro_free2up（2X免费）或 pro_free（普通免费）
+  // 注意：arrowdown 图标在所有行都有，不能作为免费判断依据
+  const state = doc.querySelector('td[valign=top] img[class=pro_free2up]') ||
+    doc.querySelector('td[valign=top] img[class=pro_free]');
+  return !!state;
 }
 
 // 站点路由
