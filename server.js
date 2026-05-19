@@ -334,16 +334,6 @@ async function runRescanCycle() {
   }
   emitLog('info', '========== 定时重检结束 ==========');
 }
-  } catch (e) {
-    emitLog('error', `抓取周期异常: ${errorMessage(e)}`);
-  } finally {
-    cycleRunning = false;
-    lastCycleTime = new Date().toISOString();
-    const interval = CONFIG.APP.INTERVAL_MS || 5 * 60 * 1000;
-    nextCycleTime = new Date(Date.now() + interval).toISOString();
-    bus.emit('status');
-  }
-}
 
 /**
  * 重检近期非免费种子，看是否已变免费

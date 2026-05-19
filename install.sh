@@ -49,10 +49,17 @@ fi
 
 # --- 3. 安装 PM2 ---
 echo -e "\n${YELLOW}[3/6] 安装 PM2...${NC}"
+# 刷新 npm 全局路径
+export NPM_GLOBAL=$(npm config get prefix 2>/dev/null)/bin
+export PATH="$NPM_GLOBAL:$PATH"
+
 if command -v pm2 &> /dev/null; then
     echo -e "${GREEN}PM2 已安装${NC}"
 else
     npm install -g pm2
+    # 再次刷新路径
+    export NPM_GLOBAL=$(npm config get prefix 2>/dev/null)/bin
+    export PATH="$NPM_GLOBAL:$PATH"
     echo -e "${GREEN}PM2 安装完成${NC}"
 fi
 
@@ -61,7 +68,7 @@ echo -e "\n${YELLOW}[4/6] 下载源码到 $INSTALL_DIR ...${NC}"
 if [ -d "$INSTALL_DIR/.git" ]; then
     echo -e "${GREEN}源码已存在，执行更新...${NC}"
     cd "$INSTALL_DIR"
-    git pull origin main
+    git pull --ff-only origin main || git pull --no-rebase origin main
 else
     mkdir -p "$(dirname "$INSTALL_DIR")"
     git clone https://github.com/WonderMaker123/free-torrent-feeder.git "$INSTALL_DIR"
@@ -85,12 +92,28 @@ fi
 
 # 尝试启动（如果 config.js 已配置好）
 echo -e "\n${YELLOW}尝试启动服务...${NC}"
-pm2 delete free-torrent-feeder 2>/dev/null || true
-NODE_ENV=production pm2 start server.js --name free-torrent-feeder --cwd "$INSTALL_DIR"
+PM2_BIN=$(command -v pm2 2>/dev/null || echo "")
+if [ -z "$PM2_BIN" ]; then
+    # 尝试从 npm 全局路径找
+    NPM_PREFIX=$(npm config get prefix 2>/dev/null)
+    PM2_BIN="$NPM_PREFIX/bin/pm2"
+fi
+
+if [ -x "$PM2_BIN" ]; then
+    "$PM2_BIN" delete free-torrent-feeder 2>/dev/null || true
+    NODE_ENV=production "$PM2_BIN" start server.js --name free-torrent-feeder --cwd "$INSTALL_DIR"
+    echo -e "${GREEN}PM2 启动完成${NC}"
+else
+    echo -e "${YELLOW}PM2 未找到，跳过自动启动。请手动运行：${NC}"
+    echo -e "  export PATH=\"\$(npm config get prefix)/bin:\$PATH\""
+    echo -e "  pm2 start server.js --name free-torrent-feeder"
+fi
 
 # 保存启动规则
-pm2 save
-pm2 startup 2>/dev/null || echo -e "${YELLOW}提示：如需开机自启，手动执行: pm2 startup${NC}"
+PM2_BIN=$(command -v pm2 2>/dev/null || echo "")
+[ -z "$PM2_BIN" ] && NPM_PREFIX=$(npm config get prefix 2>/dev/null) && PM2_BIN="$NPM_PREFIX/bin/pm2"
+[ -x "$PM2_BIN" ] && "$PM2_BIN" save 2>/dev/null
+"$PM2_BIN" startup 2>/dev/null || echo -e "${YELLOW}提示：如需开机自启，手动执行: pm2 startup${NC}"
 
 echo ""
 echo "=========================================="

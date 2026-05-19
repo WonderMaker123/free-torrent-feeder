@@ -9,6 +9,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# 刷新 npm 全局路径
+export NPM_GLOBAL=$(npm config get prefix 2>/dev/null)/bin
+export PATH="$NPM_GLOBAL:$PATH"
+
 echo "=========================================="
 echo "  Free Torrent Feeder 一键更新"
 echo "=========================================="
@@ -21,7 +25,7 @@ fi
 
 # Git pull
 echo -e "\n[1/3] Git pull..."
-git pull origin main
+git pull --ff-only origin main || git pull --no-rebase origin main
 
 # 安装新依赖（如果 package.json 有变化）
 echo -e "\n[2/3] 安装依赖..."
@@ -52,8 +56,17 @@ console.log('config.js 已更新，新增字段已合并');
 " 2>/dev/null || echo -e "${YELLOW}config.js 合并跳过（无 node 环境或格式问题）${NC}"
 
 # 重启 PM2
-pm2 restart free-torrent-feeder 2>/dev/null || pm2 start server.js --name free-torrent-feeder
-pm2 save
+PM2_BIN=$(command -v pm2 2>/dev/null || echo "")
+[ -z "$PM2_BIN" ] && NPM_PREFIX=$(npm config get prefix 2>/dev/null) && PM2_BIN="$NPM_PREFIX/bin/pm2"
+
+if [ -x "$PM2_BIN" ]; then
+    "$PM2_BIN" restart free-torrent-feeder 2>/dev/null || "$PM2_BIN" start server.js --name free-torrent-feeder
+    "$PM2_BIN" save
+    echo -e "${GREEN}PM2 重启完成${NC}"
+else
+    echo -e "${YELLOW}PM2 未找到，请手动重启：${NC}"
+    echo -e "  export PATH=\"\$(npm config get prefix)/bin:\$PATH\" && pm2 restart free-torrent-feeder"
+fi
 
 echo ""
 echo "=========================================="
