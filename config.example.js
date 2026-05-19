@@ -27,5 +27,13 @@ module.exports = {
     INTERVAL_MS: 5 * 60 * 1000,
     SITE_DELAY_MS: 3000,
     DEBUG: false,
+
+    // ----- 非免费种子重检配置 -----
+    // 重检窗口期（小时），非免费种子超过此时间后会重新检测是否变免费
+    // 默认 24 小时，即同一种子最多每 24 小时重检一次
+    RESCAN_WINDOW_HOURS: 24,
+
+    // 每轮抓取周期最多重检多少个非免费种子
+    RESCAN_MAX_PER_CYCLE: 10,
   },
 };

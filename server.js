@@ -239,7 +239,7 @@ async function processRssFeed(feed) {
 
     if (item) item.isFree = isFree;
     if (!isFree) {
-      Database.markAsProcessed(key, false);
+      Database.markAsProcessed(key, false, torrent.link || torrent.url, torrent.name, torrent.url);
       if (item) item.processed = true;
       broadcastRssState();
       continue;
@@ -260,7 +260,7 @@ async function processRssFeed(feed) {
         CONFIG.QBITORRENT.FIRST_LAST_PIECE_PRIO,
         CONFIG.QBITORRENT.PAUSED
       );
-      Database.markAsProcessed(key, true);
+      Database.markAsProcessed(key, true, torrent.link || torrent.url, torrent.name, torrent.url);
       state.addedCount += 1;
       if (item) {
         item.added = true;
@@ -270,7 +270,7 @@ async function processRssFeed(feed) {
     } catch (e) {
       if (item) item.error = errorMessage(e);
       emitLog('error', `[${name}] 添加失败 [${torrent.name}]: ${errorMessage(e)}`);
-      Database.markAsProcessed(key, false);
+      Database.markAsProcessed(key, false, torrent.link || torrent.url, torrent.name, torrent.url);
     }
     broadcastRssState();
   }
@@ -298,6 +298,9 @@ async function runCycle() {
       await sleep(CONFIG.APP.SITE_DELAY_MS || 3000);
     }
     emitLog('info', '========== 抓取周期结束 ==========');
+
+    // 重检近期非免费种子（是否有变成免费的）
+    await rescanNonFreeSeeds();
   } catch (e) {
     emitLog('error', `抓取周期异常: ${errorMessage(e)}`);
   } finally {
@@ -307,6 +310,74 @@ async function runCycle() {
     nextCycleTime = new Date(Date.now() + interval).toISOString();
     bus.emit('status');
   }
+}
+
+/**
+ * 重检近期非免费种子，看是否已变免费
+ */
+async function rescanNonFreeSeeds() {
+  const maxPerCycle = CONFIG.APP.RESCAN_MAX_PER_CYCLE || 10;
+  const windowMs = (CONFIG.APP.RESCAN_WINDOW_HOURS || 24) * 60 * 60 * 1000;
+
+  const seeds = Database.getSeedsToRescan(maxPerCycle, windowMs);
+  if (!seeds.length) return;
+
+  emitLog('info', `========== 重检 ${seeds.length} 个近期非免费种子 ==========`);
+
+  for (const seed of seeds) {
+    // 找出这个 seed 属于哪个 RSS 源（通过 link 的 host 匹配）
+    const feed = (CONFIG.RSS_FEEDS || []).find(f => {
+      try {
+        return new URL(seed.link).host === new URL(f.url).host;
+      } catch { return false; }
+    });
+    if (!feed) {
+      emitLog('warn', `[重检] 未找到对应 RSS 源，跳过: ${seed.name}`);
+      continue;
+    }
+
+    let isFree = false;
+    try {
+      isFree = await scrape.free(seed.link, feed.cookie || '');
+    } catch (e) {
+      emitLog('warn', `重检失败 [${seed.name}]: ${errorMessage(e)}`);
+      // 更新检查时间，避免每次都重试失败的
+      Database.markAsProcessed(seed.hash, false, seed.link, seed.name, seed.url);
+      continue;
+    }
+
+    if (!isFree) {
+      // 更新检查时间
+      Database.markAsProcessed(seed.hash, false, seed.link, seed.name, seed.url);
+      continue;
+    }
+
+    // 变免费了！立刻添加
+    emitLog('success', `[重检] ★ 种子变免费: ${seed.name}`);
+    try {
+      // 优先用 enclosure url（下载链接），fallback 到详情页（qB 可自动处理）
+      const torrentUrl = seed.url || seed.link;
+      await qbClient.addTorrent(
+        torrentUrl,
+        CONFIG.QBITORRENT.SKIP_HASH_CHECK,
+        CONFIG.QBITORRENT.UPLOAD_LIMIT,
+        CONFIG.QBITORRENT.DOWNLOAD_LIMIT,
+        CONFIG.QBITORRENT.SAVE_PATH,
+        CONFIG.QBITORRENT.CATEGORY,
+        CONFIG.QBITORRENT.AUTO_TMM,
+        CONFIG.QBITORRENT.FIRST_LAST_PIECE_PRIO,
+        CONFIG.QBITORRENT.PAUSED
+      );
+      Database.markAsProcessed(seed.hash, true, seed.link, seed.name, seed.url);
+      emitLog('success', `[重检] 已添加: ${seed.name}`);
+    } catch (e) {
+      emitLog('error', `[重检] 添加失败 [${seed.name}]: ${errorMessage(e)}`);
+    }
+
+    await sleep(CONFIG.APP.SITE_DELAY_MS || 3000);
+  }
+
+  emitLog('info', '========== 重检完成 ==========');
 }
 
 function startScheduler() {
