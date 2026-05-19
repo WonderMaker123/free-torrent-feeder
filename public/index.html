@@ -380,7 +380,7 @@ td { font-size: 13px; }
       <div class="panel-head"><h2>处理记录</h2><button class="btn" onclick="loadStats()">刷新</button></div>
       <div class="box torrent-list">
         <table>
-          <thead><tr><th>时间</th><th>Hash</th><th>状态</th></tr></thead>
+          <thead><tr><th>时间</th><th>名称</th><th>Hash</th><th>状态</th></tr></thead>
           <tbody id="statsBody"></tbody>
         </table>
       </div>
@@ -742,11 +742,12 @@ function renderTorrentTable(items) {
   if (!items.length) return '<div class="hint" style="padding:10px 0">暂无种子列表。</div>';
   return `
     <table>
-      <thead><tr><th>名称</th><th>大小</th><th>Hash</th><th>免费</th><th>状态</th></tr></thead>
+      <thead><tr><th>名称</th><th>链接</th><th>大小</th><th>Hash</th><th>免费</th><th>状态</th></tr></thead>
       <tbody>
         ${items.slice(0, 100).map(item => `
           <tr>
-            <td><a class="blue" href="${esc(item.link || item.url)}" target="_blank" rel="noreferrer">${esc(item.name || '未命名')}</a>${item.error ? `<div class="red">${esc(item.error)}</div>` : ''}</td>
+            <td>${esc(item.name || '未命名')}${item.error ? `<div class="red">${esc(item.error)}</div>` : ''}</td>
+            <td>${item.link ? `<a href="${esc(item.link)}" target="_blank" rel="noreferrer" title="查看种子详情">🔗</a>` : ''}</td>
             <td>${esc(item.sizeText || formatSize(item.size))}</td>
             <td class="mono">${esc(item.hash || '-')}</td>
             <td>${item.isFree === true ? '<span class="badge green">免费</span>' : item.isFree === false ? '<span class="badge">非免费</span>' : '<span class="badge yellow">待检测</span>'}</td>
@@ -792,10 +793,11 @@ async function loadStats() {
   $('statsBody').innerHTML = rows.length ? rows.map(row => `
     <tr>
       <td>${esc(formatTime(row.addedAt))}</td>
+      <td>${row.link ? `<a class="blue" href="${esc(row.link)}" target="_blank" rel="noreferrer">${esc(row.name || '未命名')}</a>` : esc(row.name || '未命名')}</td>
       <td class="mono">${esc(row.hash)}</td>
       <td>${row.isFree ? '<span class="badge green">已添加免费</span>' : '<span class="badge">非免费/失败</span>'}</td>
     </tr>
-  `).join('') : '<tr><td colspan="3" class="hint">暂无记录</td></tr>';
+  `).join('') : '<tr><td colspan="4" class="hint">暂无记录</td></tr>';
 }
 
 async function logout() {
