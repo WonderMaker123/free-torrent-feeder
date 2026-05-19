@@ -114,15 +114,21 @@ async function freeHDCity(html) {
   return html.includes('"free"') || html.includes("'free'");
 }
 
-// U2.dmhy.org（动漫花园，NexusPHP，与通用一致）
+// U2.dmhy.org（动漫花园），参考 vertex-app/vertex 的正确实现
 async function freeU2DMHY(html) {
   if (!html.includes('userdetails') && !html.includes('mybonus')) {
     throw new Error('[U2] Cookie 失效');
   }
   const dom = new JSDOM(html);
   const doc = dom.window.document;
-  if (doc.querySelector('#top font.free, #top font.twoupfree')) return true;
-  if (doc.querySelector('#top span.free, #top span.twoupfree')) return true;
+  // U2 免费标记：td[valign=top] img[class=pro_free] 或 pro_free2up
+  // 或箭头下载图标旁边倍率为 0.00X（也是免费标记）
+  const proFree = doc.querySelector('td[valign=top] img[class=pro_free]');
+  const proFree2up = doc.querySelector('td[valign=top] img[class=pro_free2up]');
+  const arrowDown = doc.querySelector('td[valign=top] img[class=arrowdown]');
+  if (proFree || proFree2up) return true;
+  // 箭头下载 + 倍率为 0.00X 也是免费
+  if (arrowDown && arrowDown.nextSibling && arrowDown.nextSibling.innerHTML === '0.00X') return true;
   return false;
 }
 
