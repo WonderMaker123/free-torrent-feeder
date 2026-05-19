@@ -115,17 +115,18 @@ async function freeHDCity(html) {
 }
 
 // U2.dmhy.org（动漫花园），参考 vertex-app/vertex 的正确实现
+// 返回 0=非免费, 1=普通免费, 2=2X免费
 async function freeU2DMHY(html) {
   if (!html.includes('userdetails') && !html.includes('mybonus')) {
     throw new Error('[U2] Cookie 失效');
   }
   const dom = new JSDOM(html);
   const doc = dom.window.document;
-  // U2 免费标记：pro_free2up（2X免费）或 pro_free（普通免费）
-  // 注意：arrowdown 图标在所有行都有，不能作为免费判断依据
-  const state = doc.querySelector('td[valign=top] img[class=pro_free2up]') ||
-    doc.querySelector('td[valign=top] img[class=pro_free]');
-  return !!state;
+  const proFree2up = doc.querySelector('td[valign=top] img[class=pro_free2up]');
+  if (proFree2up) return 2; // 2X免费
+  const proFree = doc.querySelector('td[valign=top] img[class=pro_free]');
+  if (proFree) return 1; // 普通免费
+  return 0; // 非免费
 }
 
 // 站点路由

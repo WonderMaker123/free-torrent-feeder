@@ -246,7 +246,8 @@ async function processRssFeed(feed) {
     }
 
     state.freeCount += 1;
-    emitLog('success', `[${name}] 发现免费种子: ${torrent.name} (${formatSize(torrent.size)})`);
+    const freeLabel = isFree === 2 ? '2X免费' : '免费';
+    emitLog('success', `[${name}] 发现${freeLabel}种子: ${torrent.name} (${formatSize(torrent.size)})`);
 
     try {
       await qbClient.addTorrent(

@@ -755,7 +755,7 @@ function renderTorrentTable(items, feedName) {
             <td>${item.link ? `<a href="${esc(item.link)}" target="_blank" rel="noreferrer" title="查看种子详情">🔗</a>` : ''}</td>
             <td>${esc(item.sizeText || formatSize(item.size))}</td>
             <td class="mono">${esc(item.hash || '-')}</td>
-            <td>${item.isFree === true ? '<span class="badge green">免费</span>' : item.isFree === false ? '<span class="badge">非免费</span>' : '<span class="badge yellow">待检测</span>'}</td>
+            <td>${item.isFree === 2 ? '<span class="badge green">2X免费</span>' : item.isFree === 1 || item.isFree === true ? '<span class="badge green">免费</span>' : item.isFree === 0 || item.isFree === false ? '<span class="badge">非免费</span>' : '<span class="badge yellow">待检测</span>'}</td>
             <td>${item.added ? '<span class="badge green">已添加</span>' : item.processed ? '<span class="badge">已处理</span>' : '<span class="badge yellow">待处理</span>'}</td>
             <td><button class="btn" style="padding:2px 8px;font-size:12px" onclick="checkFree(this,'${esc(item.link)}','${esc(feedName)}')">检测</button></td>
         `).join('')}
@@ -776,12 +776,16 @@ async function checkFree(btn, url, feedName) {
     // 找到对应行更新免费状态
     const row = btn.closest('tr');
     const td = row.children[4]; // 免费列
-    if (data.isFree) {
+    if (data.isFree === 2) {
+      td.innerHTML = '<span class="badge green">2X免费</span>';
+      toast('检测完成: 2X免费', 'success');
+    } else if (data.isFree === 1 || data.isFree === true) {
       td.innerHTML = '<span class="badge green">免费</span>';
+      toast('检测完成: 免费', 'success');
     } else {
       td.innerHTML = '<span class="badge">非免费</span>';
+      toast('检测完成: 非免费', '');
     }
-    toast(`检测完成: ${data.isFree ? '免费' : '非免费'}`, data.isFree ? 'success' : '');
   } catch (e) {
     toast(`检测失败: ${e.message}`, 'error');
   } finally {
